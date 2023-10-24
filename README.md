@@ -13,7 +13,7 @@ Sui = { git = "https://github.com/damirka/pokemon.git", subdir = "packages/pokem
 
 ## Want to play?
 
-Devnet is recet weekly, so the stored package id may already be irrelevant. However, if it does work, you're free to use CLI to challenge a bot or another player.
+Devnet is reset weekly, so the stored package id may already be irrelevant. However, if it does work, you're free to use CLI to challenge a bot or another player.
 
 ```bash
 
