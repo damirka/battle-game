@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   '@mysten/sui.js':
-    specifier: ^0.44.0
-    version: 0.44.0
+    specifier: ^0.45.0
+    version: 0.45.0
   blake2b:
     specifier: ^2.1.4
     version: 2.1.4
@@ -33,8 +33,8 @@ packages:
       bs58: 5.0.0
     dev: false
 
-  /@mysten/sui.js@0.44.0:
-    resolution: {integrity: sha512-c/d1fKUCK6+QBQuIaufC79vbvNfx4KcEEO25F/NZFs3cQCoqgVrQC6wuv1P4lpqFOq3S9jhz2NrkIcU0yzkIOw==}
+  /@mysten/sui.js@0.45.0:
+    resolution: {integrity: sha512-t+LyGWzKTH+TM3c7apvK2aohnx6hj0nxjqrqbk49X/uLxhvDKEIoTGJDQC2cfDTOg6OteYTefCNsfRauh8wAzA==}
     engines: {node: '>=16'}
     dependencies:
       '@mysten/bcs': 0.8.1
