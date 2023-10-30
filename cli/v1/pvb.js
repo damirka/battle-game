@@ -28,7 +28,7 @@ const TEMP_KEYSTORE = process.env.KEYSTORE || "./.temp.keystore.json";
 // use a local keypair for testing purposes
 if (fs.existsSync(TEMP_KEYSTORE)) {
   console.log('Found local keypair, using it');
-  const keystore = JSON.parse(fs.readFileSync('./.keystore.json', 'utf8'));
+  const keystore = JSON.parse(fs.readFileSync(TEMP_KEYSTORE, 'utf8'));
   myKey.privateKey = keystore.privateKey;
   myKey.schema = keystore.schema;
 } else {
