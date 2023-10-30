@@ -13,7 +13,7 @@ import * as fs from "fs";
 
 // === Sui Devnet Environment ===
 
-const pkg = "0xe316cf6f32b889e602d413ae63a99a094be9e0e76a14829c838ee607b9331a50";
+const pkg = "0x3b12f22fa80b399a104f590e9b3a396a7b2545aac1fa22590482b5864f26b898";
 
 /** The built-in client for the application */
 const client = new SuiClient({ url: getFullnodeUrl("devnet") });
