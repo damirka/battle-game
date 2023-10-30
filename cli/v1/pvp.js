@@ -77,7 +77,7 @@ const RoundResult = `${pkg}::arena_pvp::RoundResult`;
 
 // === Moves ===
 
-const Moves = ["Rock", "Paper", "Scissors"];
+const Moves = ["Fire", "Earth", "Water"];
 
 // === Commands / Actions ===
 
@@ -130,6 +130,12 @@ async function joinArena(arenaId) {
 
   let gasObj = null;
 
+  console.log('\nTip:');
+  console.log('- Fire is strong against water');
+  console.log('- Earth is strong against fire');
+  console.log('- Water is strong against earth...\n');
+
+
   // Currently we only expect 1 scenario - join and compete to the end. So no
   // way to leave the arena and then rejoin. And the game order is fixed.
   if (!rejoin) {
@@ -166,7 +172,7 @@ async function createArena() {
   let { result, gas } = await signAndExecute(tx);
   let gasObj = gas;
 
-  console.log('created with gas: %o', gasObj);
+  // console.log('created with gas: %o', gasObj);
 
   let event = result.events[0].parsedJson;
   let arenaData = result.objectChanges.find((o) =>
@@ -174,6 +180,11 @@ async function createArena() {
   );
 
   console.log("Arena Created", event.arena);
+
+  console.log('\nTip:');
+  console.log('- Fire is strong against water');
+  console.log('- Earth is strong against fire');
+  console.log('- Water is strong against earth...\n');
 
   /* The Arena object; shared and never changes */
   const arena = {
@@ -433,9 +444,9 @@ function chooseMove() {
         prefix: ">",
         message: "Choose your move",
         choices: [
-          { name: "Rock", value: 0 },
-          { name: "Paper", value: 1 },
-          { name: "Scissors", value: 2 },
+          { name: "Fire", value: 0 },
+          { name: "Earth", value: 1 },
+          { name: "Water", value: 2 },
         ],
       },
     ])

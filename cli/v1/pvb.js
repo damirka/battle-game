@@ -81,6 +81,10 @@ async function createArena() {
     { name: "Player", ...event.player_stats },
     { name: "Bot", ...event.bot_stats },
   ]);
+  
+  console.log('- Fire is strong against water');
+  console.log('- Earth is strong against fire');
+  console.log('- Water is strong against earth');
 
   // We need this buddy for further calls.
   const arenaObj = {
@@ -103,9 +107,9 @@ async function createArena() {
         prefix: ">",
         message: "Choose your move",
         choices: [
-          { name: "Rock", value: 0 },
-          { name: "Paper", value: 1 },
-          { name: "Scissors", value: 2 },
+          { name: "Fire", value: 0 },
+          { name: "Earth", value: 1 },
+          { name: "Water", value: 2 },
         ],
       },
     ]);
