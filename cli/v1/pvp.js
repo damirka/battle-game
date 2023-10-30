@@ -4,7 +4,11 @@
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui.js/client";
 import { requestSuiFromFaucetV1, getFaucetHost } from "@mysten/sui.js/faucet";
-import { fromB64, isValidSuiObjectId } from "@mysten/sui.js/utils";
+import {
+  formatAddress,
+  fromB64,
+  isValidSuiObjectId,
+} from "@mysten/sui.js/utils";
 import { program } from "commander";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import inquirer from "inquirer";
@@ -13,7 +17,8 @@ import * as fs from "fs";
 
 // === Sui Devnet Environment ===
 
-const pkg = "0x3b12f22fa80b399a104f590e9b3a396a7b2545aac1fa22590482b5864f26b898";
+const pkg =
+  "0x3b12f22fa80b399a104f590e9b3a396a7b2545aac1fa22590482b5864f26b898";
 
 /** The built-in client for the application */
 const client = new SuiClient({ url: getFullnodeUrl("devnet") });
@@ -28,12 +33,12 @@ const TEMP_KEYSTORE = process.env.KEYSTORE || "./.temp.keystore.json";
 
 // use a local keypair for testing purposes
 if (fs.existsSync(TEMP_KEYSTORE)) {
-  console.log('Found local keypair, using it');
-  const keystore = JSON.parse(fs.readFileSync(TEMP_KEYSTORE, 'utf8'));
+  console.log("Found local keypair, using it");
+  const keystore = JSON.parse(fs.readFileSync(TEMP_KEYSTORE, "utf8"));
   myKey.privateKey = keystore.privateKey;
   myKey.schema = keystore.schema;
 } else {
-  console.log('Creating a temp account for testing purposes');
+  console.log("Creating a temp account for testing purposes");
   const keypair = Ed25519Keypair.generate().export();
   myKey.privateKey = keypair.privateKey;
   myKey.schema = keypair.schema;
@@ -42,6 +47,14 @@ if (fs.existsSync(TEMP_KEYSTORE)) {
 
 const keypair = Ed25519Keypair.fromSecretKey(fromB64(myKey.privateKey));
 const address = keypair.toSuiAddress();
+
+// === Events ===
+
+const ArenaCreated = `${pkg}::arena_pvp::ArenaCreated`;
+const PlayerJoined = `${pkg}::arena_pvp::PlayerJoined`;
+const PlayerCommit = `${pkg}::arena_pvp::PlayerCommit`;
+const PlayerReveal = `${pkg}::arena_pvp::PlayerReveal`;
+const RoundResult = `${pkg}::arena_pvp::RoundResult`;
 
 // === CLI Bits ===
 
@@ -60,20 +73,9 @@ program
   .description("Join an arena")
   .action(joinArena);
 
-program
-  .command("search")
-  .description("Search for arenas")
-  .action(searchArenas);
+program.command("search").description("Search for arenas").action(searchArenas);
 
 program.parse(process.argv);
-
-// === Events ===
-
-const ArenaCreated = `${pkg}::arena_pvp::ArenaCreated`;
-const PlayerJoined = `${pkg}::arena_pvp::PlayerJoined`;
-const PlayerCommit = `${pkg}::arena_pvp::PlayerCommit`;
-const PlayerReveal = `${pkg}::arena_pvp::PlayerReveal`;
-const RoundResult = `${pkg}::arena_pvp::RoundResult`;
 
 // === Moves ===
 
@@ -130,11 +132,10 @@ async function joinArena(arenaId) {
 
   let gasObj = null;
 
-  console.log('\nTip:');
-  console.log('- Fire is strong against water');
-  console.log('- Earth is strong against fire');
-  console.log('- Water is strong against earth...\n');
-
+  console.log("\nTip:");
+  console.log("- Fire is strong against water");
+  console.log("- Earth is strong against fire");
+  console.log("- Water is strong against earth...\n");
 
   // Currently we only expect 1 scenario - join and compete to the end. So no
   // way to leave the arena and then rejoin. And the game order is fixed.
@@ -181,10 +182,10 @@ async function createArena() {
 
   console.log("Arena Created", event.arena);
 
-  console.log('\nTip:');
-  console.log('- Fire is strong against water');
-  console.log('- Earth is strong against fire');
-  console.log('- Water is strong against earth...\n');
+  console.log("\nTip:");
+  console.log("- Fire is strong against water");
+  console.log("- Earth is strong against fire");
+  console.log("- Water is strong against earth...\n");
 
   /* The Arena object; shared and never changes */
   const arena = {
@@ -308,8 +309,69 @@ async function fullRound(arena, player_one, player_two, gasObj = null) {
   return { gas: gasObj };
 }
 
-function searchArenas() {
+/** Search for recently created Arenas; look for those empty */
+async function searchArenas() {
+  let { data } = await client.queryEvents({
+    query: { MoveEventType: ArenaCreated },
+    order: "descending",
+  });
+  if (!data || !data.length) {
+    return console.log("No arenas found");
+  }
 
+  let search = data
+    .slice(0, 5)
+    .map((e) => ({
+      arena: e.parsedJson.arena,
+      created: Date.now() - e.timestampMs,
+    }))
+    .filter((e) => e.created < 120000); // 2 minutes
+
+  let byTime = search.reduce(
+    (acc, v) => ({ ...acc, [v.arena]: v.created }),
+    {}
+  );
+  let query = search.map(({ arena }) =>
+    client.getObject({ id: arena, options: { showContent: true } })
+  );
+  let arenas = (await Promise.all(query))
+    .filter((e) => !!e.data)
+    .map((e) => ({ objectId: e.data.objectId, content: e.data.content.fields }))
+    .filter((e) => e.content.player_two === null);
+
+  if (arenas.length == 0) {
+    let { create } = await inquirer.prompt([
+      {
+        type: "confirm",
+        name: "create",
+        message: "No arenas found, create one?",
+        prefix: ">",
+      },
+    ]);
+
+    if (create) {
+      return createArena();
+    } else {
+      return console.log("See you next time!");
+    }
+  }
+
+  let { arena } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "arena",
+      prefix: ">",
+      message: "Choose an arena",
+      choices: arenas.map((e) => ({
+        name: `${formatAddress(e.objectId)} (created ${(
+          byTime[e.objectId] / 1000
+        ).toFixed("0")}s ago}`,
+        value: e.objectId,
+      })),
+    },
+  ]);
+
+  return joinArena(arena);
 }
 
 // === Transactions ===
