@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui.js/client";
+import { SuiClient, SuiHTTPTransport, getFullnodeUrl } from "@mysten/sui.js/client";
 import { requestSuiFromFaucetV1, getFaucetHost } from "@mysten/sui.js/faucet";
+import { bcs } from "@mysten/sui.js/bcs";
 import {
   formatAddress,
   fromB64,
@@ -14,14 +15,60 @@ import { TransactionBlock } from "@mysten/sui.js/transactions";
 import inquirer from "inquirer";
 import blake2b from "blake2b";
 import * as fs from "fs";
+import { promisify } from "util";
+import { decodeSuiPrivateKey } from "@mysten/sui.js/cryptography";
+
+const wait = promisify(setTimeout);
 
 // === Sui Devnet Environment ===
 
 const pkg =
-  "0x5d1049d41bbf210afb80939b601f3a8ab18e1e098e90212e2a427c99fb406afb";
+  "0x794aad4b42d93bc0fe5af808424d2c9603da01318de55ed02e34ce69cfb305ec";
+
+const Stats = bcs.struct('Stats', {
+  hp: bcs.u64(),
+  attack: bcs.u8(),
+  defence: bcs.u8(),
+  specialAttack: bcs.u8(),
+  specialDefence: bcs.u8(),
+  speed: bcs.u8(),
+  level: bcs.u8(),
+  types: bcs.vector(bcs.u8())
+});
+
+const Round = bcs.struct('RoundResult', {
+  playerOneHp: bcs.u64(),
+  playerTwoHp: bcs.u64(),
+  playerOneMove: bcs.u8(),
+  playerTwoMove: bcs.u8()
+});
+
+const Player = bcs.struct('Player', {
+  startingHp: bcs.u64(),
+  stats: Stats,
+  account: bcs.Address,
+  nextAttack: bcs.option(bcs.vector(bcs.u8())),
+  lastMove: bcs.option(bcs.u8()),
+  nextRound: bcs.u8()
+});
+
+const Arena = bcs.struct('Arena', {
+  id: bcs.Address,
+  seed: bcs.vector(bcs.u8()),
+  round: bcs.u8(),
+  playerOne: Player,
+  playerTwo: bcs.option(Player),
+  winner: bcs.option(bcs.Address),
+  history: bcs.vector(Round)
+});
 
 /** The built-in client for the application */
-const client = new SuiClient({ url: getFullnodeUrl("testnet") });
+const client = new SuiClient({
+  // url: getFullnodeUrl("testnet"),
+  transport: new SuiHTTPTransport({
+    url: getFullnodeUrl("testnet"),
+  }),
+});
 
 /** The private key for the address; only for testing purposes */
 const myKey = {
@@ -35,26 +82,23 @@ const TEMP_KEYSTORE = process.env.KEYSTORE || "./.temp.keystore.json";
 if (fs.existsSync(TEMP_KEYSTORE)) {
   console.log("Found local keypair, using it");
   const keystore = JSON.parse(fs.readFileSync(TEMP_KEYSTORE, "utf8"));
-  myKey.privateKey = keystore.privateKey;
-  myKey.schema = keystore.schema;
+  const { secretKey, schema } = decodeSuiPrivateKey(keystore);
+  myKey.privateKey = secretKey;
+  myKey.schema = schema;
 } else {
   console.log("Creating a temp account for testing purposes");
-  const keypair = Ed25519Keypair.generate().export();
-  myKey.privateKey = keypair.privateKey;
-  myKey.schema = keypair.schema;
-  fs.writeFileSync(TEMP_KEYSTORE, JSON.stringify(myKey));
+  const keypair = Ed25519Keypair.generate();
+  fs.writeFileSync(TEMP_KEYSTORE, JSON.stringify(keypair.getSecretKey()));
+  myKey.privateKey = decodeSuiPrivateKey(keypair.getSecretKey());
+  myKey.schema = keypair.getKeyScheme();
 }
 
-const keypair = Ed25519Keypair.fromSecretKey(fromB64(myKey.privateKey));
+const keypair = Ed25519Keypair.fromSecretKey(myKey.privateKey);
 const address = keypair.toSuiAddress();
 
 // === Events ===
 
 const ArenaCreated = `${pkg}::arena_pvp::ArenaCreated`;
-const PlayerJoined = `${pkg}::arena_pvp::PlayerJoined`;
-const PlayerCommit = `${pkg}::arena_pvp::PlayerCommit`;
-const PlayerReveal = `${pkg}::arena_pvp::PlayerReveal`;
-const RoundResult = `${pkg}::arena_pvp::RoundResult`;
 
 // === CLI Bits ===
 
@@ -197,33 +241,33 @@ async function createArena() {
   // Now wait until another player joins. This is a blocking call.
   console.log("Waiting for another player to join...");
 
-  let player_two = null;
-  let joinUnsub = await listenToArenaEvents(arena.objectId, (event) => {
-    event.type === PlayerJoined && (player_two = event.sender);
+  /** @type Arena */
+  let game = await listenToArenaEvents(arena.objectId, (arena) => {
+    if (arena.playerTwo !== null) {
+      return arena;
+    }
   });
 
-  await waitUntil(() => player_two !== null);
-  await joinUnsub();
-
-  console.log("Player 2 joined! %s", player_two);
+  console.log("Player 2 joined! %s", game.playerTwo.account);
   console.log("Starting the battle!");
 
-  let { p1, p2 } = await getStats(arena.objectId);
-  console.table([p1, p2]);
+  console.table([game.playerOne, game.playerTwo]);
 
   while (true) {
     console.log("[NEXT ROUND]");
-    let { gas } = await fullRound(arena, address, player_two, gasObj);
+    let { gas } = await fullRound(arena, address, game.playerTwo.account, gasObj);
     gasObj = gas;
   }
 }
 
 /** Perform a single round of actions: commit, wait, reveal, repeat */
-async function fullRound(arena, player_one, player_two, gasObj = null) {
-  let p2_moved = false;
-  let moveUnsub = await listenToArenaEvents(arena.objectId, (event) => {
-    if (event.sender === player_two && event.type === PlayerCommit) {
-      p2_moved = true;
+async function fullRound(arena, p1, p2, gasObj = null) {
+
+  // start listening for the opponent's move and perform the move in parallel
+  let p2Moved = listenToArenaEvents(arena.objectId, (arena) => {
+    let player = arena.playerOne.account == p2 ? arena.playerOne : arena.playerTwo;
+    if (player.nextAttack !== null) {
+      return arena;
     }
   });
 
@@ -232,24 +276,18 @@ async function fullRound(arena, player_one, player_two, gasObj = null) {
   gasObj = cmtGas;
   console.log("Commitment submitted!");
 
-  await waitUntil(() => p2_moved);
-  await moveUnsub();
+  let initialState = await p2Moved; // wait for the opponent to commit
+  let meP1 = initialState.playerOne.account == p1;
 
   console.log("Both players have chosen a move. Revealing...");
 
-  let round_res = null;
   let p2_move = null;
-  let roundUnsub = await listenToArenaEvents(arena.objectId, (event) => {
-    if (event.type === PlayerReveal && event.sender === player_two) {
-      p2_move = event.parsedJson._move;
-    }
-
-    if (event.type === RoundResult) {
-      round_res = {
-        attacker: event.sender,
-        attacker_hp: event.parsedJson.attacker_hp,
-        defender_hp: event.parsedJson.defender_hp,
-      };
+  let round_res = null;
+  let p2Revealed = listenToArenaEvents(arena.objectId, (arena) => {
+    // Next round happened -ish
+    if (arena.history.length == initialState.history.length + 1) {
+      round_res = arena.history[arena.history.length - 1];
+      return arena;
     }
   });
 
@@ -257,52 +295,39 @@ async function fullRound(arena, player_one, player_two, gasObj = null) {
   gasObj = rvlGas;
   console.log("Revealed!");
 
-  await waitUntil(() => !!round_res);
-  await roundUnsub();
+  await p2Revealed;
 
-  if (round_res.attacker === player_one) {
-    console.table([
-      {
-        name: "You",
-        hp: formatHP(round_res.attacker_hp),
-        move: Moves[p1_move],
-      },
-      {
-        name: "Opponent",
-        hp: formatHP(round_res.defender_hp),
-        move: (p2_move && Moves[p2_move]) || "Network Failure",
-      },
-    ]);
-  } else {
-    console.table([
-      {
-        name: "You",
-        hp: formatHP(round_res.defender_hp),
-        move: Moves[p1_move],
-      },
-      {
-        name: "Opponent",
-        hp: formatHP(round_res.attacker_hp),
-        move: (p2_move && Moves[p2_move]) || "Network Failure",
-      },
-    ]);
+  console.log("Both players have revealed their moves. Results are in!");
+  console.table([
+    {
+      name: "You",
+      hp: formatHP(meP1 ? round_res.playerOneHp : round_res.playerTwoHp),
+      move: Moves[meP1 ? round_res.playerOneMove : round_res.playerTwoMove],
+    },
+    {
+      name: "Opponent",
+      hp: formatHP(meP1 ? round_res.playerTwoHp : round_res.playerOneHp),
+      move: Moves[meP1 ? round_res.playerTwoMove : round_res.playerOneMove],
+    },
+  ]);
+
+  if (meP1 && round_res.playerOneHp == 0) {
+    console.log("Game over! You lost!");
+    process.exit(0);
   }
 
-  if (round_res.attacker_hp == 0 || round_res.defender_hp == 0) {
-    if (address == round_res.attacker) {
-      if (round_res.attacker_hp == 0) {
-        console.log("Game over! You lost!");
-      } else {
-        console.log("Congratulations! You won!");
-      }
-    } else {
-      if (round_res.attacker_hp == 0) {
-        console.log("Congratulations! You won!");
-      } else {
-        console.log("Game over! You lost!");
-      }
-    }
+  if (meP1 && round_res.playerTwoHp == 0) {
+    console.log("Congratulations! You won!");
+    process.exit(0);
+  }
 
+  if (!meP1 && round_res.playerOneHp == 0) {
+    console.log("Congratulations! You won!");
+    process.exit(0);
+  }
+
+  if (!meP1 && round_res.playerTwoHp == 0) {
+    console.log("Game over! You lost!");
     process.exit(0);
   }
 
@@ -311,12 +336,12 @@ async function fullRound(arena, player_one, player_two, gasObj = null) {
 
 /** Search for recently created Arenas; look for those empty */
 async function searchArenas() {
-  let { data } = await client.queryEvents({
+  let { data, error } = await client.queryEvents({
     query: { MoveEventType: ArenaCreated },
     order: "descending",
   });
-  if (!data || !data.length) {
-    return console.log("No arenas found");
+  if (!data) {
+    return console.log("An error occurred");
   }
 
   let search = data
@@ -332,12 +357,12 @@ async function searchArenas() {
     {}
   );
   let query = search.map(({ arena }) =>
-    client.getObject({ id: arena, options: { showContent: true } })
+    client.getObject({ id: arena, options: { showBcs: true } })
   );
   let arenas = (await Promise.all(query))
     .filter((e) => !!e.data)
-    .map((e) => ({ objectId: e.data.objectId, content: e.data.content.fields }))
-    .filter((e) => e.content.player_two === null);
+    .map((e) => ({ objectId: e.data.objectId, content: Arena.parse(fromB64(e.data.bcs.bcsBytes)) }))
+    .filter((e) => e.content.playerTwo === null);
 
   if (arenas.length == 0) {
     let { create } = await inquirer.prompt([
@@ -447,29 +472,22 @@ function formatHP(hp) {
   return +(hp / 100000000).toFixed(2);
 }
 
-/** Subscribe to all emitted events for a specified arena */
-function listenToArenaEvents(arenaId, cb) {
-  return client.subscribeEvent({
-    filter: {
-      All: [
-        { MoveModule: { module: "arena_pvp", package: pkg } },
-        { MoveEventModule: { module: "arena_pvp", package: pkg } },
-        { Package: pkg },
-      ],
-    },
-    onMessage: (event) => {
-      let cond =
-        event.packageId == pkg &&
-        event.transactionModule == "arena_pvp" &&
-        event.parsedJson.arena == arenaId;
+/**
+ * Subscribe to all emitted events for a specified arena
+ * @param {string} arenaId
+ * @param {(arena: Arena) => void | any} cb
+ */
+async function listenToArenaEvents(arenaId, cb) {
+  const fetch = await client.getObject({ id: arenaId, options: { showBcs: true }});
+  const bytes = fromB64(fetch.data.bcs.bcsBytes);
+  const arena = Arena.parse(bytes);
 
-      if (cond) {
-        cb(event);
-      } else {
-        console.log("Not tracked: %o", event);
-      }
-    },
-  });
+  let res = cb(arena);
+  if (typeof res !== "undefined") {
+    return res;
+  }
+
+  return listenToArenaEvents(arenaId, cb);
 }
 
 /** Sign the TransactionBlock and send the tx to the network */

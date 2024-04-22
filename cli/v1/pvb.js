@@ -9,10 +9,11 @@ import { program } from "commander";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import inquirer from "inquirer";
 import * as fs from "fs";
+import { decodeSuiPrivateKey } from "@mysten/sui.js/cryptography";
 
 // === Sui Devnet Environment ===
 
-const pkg = "0x5d1049d41bbf210afb80939b601f3a8ab18e1e098e90212e2a427c99fb406afb";
+const pkg = "0x794aad4b42d93bc0fe5af808424d2c9603da01318de55ed02e34ce69cfb305ec";
 
 /** The built-in client for the application */
 const client = new SuiClient({ url: getFullnodeUrl("testnet") });
@@ -27,20 +28,23 @@ const TEMP_KEYSTORE = process.env.KEYSTORE || "./.temp.keystore.json";
 
 // use a local keypair for testing purposes
 if (fs.existsSync(TEMP_KEYSTORE)) {
-  console.log('Found local keypair, using it');
-  const keystore = JSON.parse(fs.readFileSync(TEMP_KEYSTORE, 'utf8'));
-  myKey.privateKey = keystore.privateKey;
-  myKey.schema = keystore.schema;
+  console.log("Found local keypair, using it");
+  const keystore = JSON.parse(fs.readFileSync(TEMP_KEYSTORE, "utf8"));
+  const { secretKey, schema } = decodeSuiPrivateKey(keystore);
+  myKey.privateKey = secretKey;
+  myKey.schema = schema;
 } else {
-  console.log('Creating a temp account for testing purposes');
-  const keypair = Ed25519Keypair.generate().export();
-  myKey.privateKey = keypair.privateKey;
-  myKey.schema = keypair.schema;
-  fs.writeFileSync(TEMP_KEYSTORE, JSON.stringify(myKey));
+  console.log("Creating a temp account for testing purposes");
+  const keypair = Ed25519Keypair.generate();
+  fs.writeFileSync(TEMP_KEYSTORE, JSON.stringify(keypair.getSecretKey()));
+  myKey.privateKey = decodeSuiPrivateKey(keypair.getSecretKey());
+  myKey.schema = keypair.getKeyScheme();
 }
 
-const keypair = Ed25519Keypair.fromSecretKey(fromB64(myKey.privateKey));
+const keypair = Ed25519Keypair.fromSecretKey(myKey.privateKey);
 const address = keypair.toSuiAddress();
+
+// const account = decodeSuiPrivateKey()
 
 // === CLI Bits ===
 

@@ -33,6 +33,8 @@ module prototype::arena_pvp {
         account: address,
         /// Stores the hashed move.
         next_attack: Option<vector<u8>>,
+        /// Stores the last move for round.
+        last_move: Option<u8>,
         /// Helps track the round. So that a second reveal can be performed
         /// without rushing into async execution.
         next_round: u8
@@ -51,24 +53,19 @@ module prototype::arena_pvp {
         player_two: Option<Player>,
         /// The winner of the battle.
         winner: Option<address>,
+        /// The battle history.
+        history: vector<RoundResult>
     }
 
     /// Emitted when a new Arena is created and available for joining.
     public struct ArenaCreated has copy, drop { arena: address }
-    /// Emitted when a player joins the Arena.
-    public struct PlayerJoined has copy, drop { arena: address }
-    /// Emitted when a player commits the hit move.
-    public struct PlayerCommit has copy, drop { arena: address }
-    /// Emitted when a player reveals the result and hits the other player.
-    public struct PlayerReveal has copy, drop {
-        arena: address,
-        _move: u8
-    }
+
     /// Emitted when both players have hit and the round is over.
-    public struct RoundResult  has copy, drop {
-        arena: address,
-        attacker_hp: u64,
-        defender_hp: u64
+    public struct RoundResult has store, copy, drop {
+        player_one_hp: u64,
+        player_two_hp: u64,
+        player_one_move: u8,
+        player_two_move: u8
     }
 
     #[allow(lint(share_owned))]
@@ -94,11 +91,8 @@ module prototype::arena_pvp {
             stats: stats,
             account: ctx.sender(),
             next_attack: option::none(),
-            next_round: 0
-        });
-
-        sui::event::emit(PlayerJoined {
-            arena: arena.id.to_address()
+            last_move: option::none(),
+            next_round: 0,
         });
     }
 
@@ -120,10 +114,6 @@ module prototype::arena_pvp {
         } else {
             abort EUnknownSender // we don't know who you are
         };
-
-        sui::event::emit(PlayerCommit {
-            arena: arena.id.to_address()
-        });
     }
 
     /// Each of the players needs to reveal their move; so that the round can
@@ -139,7 +129,7 @@ module prototype::arena_pvp {
 
         // The player that is revealing.
         let player = ctx.sender();
-        let _is_p1 = is_player_one(arena, player);
+        let is_p1 = is_player_one(arena, player);
 
         // Get both players (mutably).
         let (attacker, defender) = if (is_player_one(arena, player)) {
@@ -168,6 +158,7 @@ module prototype::arena_pvp {
             false
         );
 
+        attacker.last_move = option::some(_move);
         attacker.next_attack = option::none();
         attacker.next_round = arena.round + 1;
 
@@ -176,11 +167,6 @@ module prototype::arena_pvp {
         let next_round_cond = defender.next_attack.is_none()
             && (defender.next_round == (arena.round + 1));
 
-        sui::event::emit(PlayerReveal {
-            arena: arena.id.to_address(),
-            _move
-        });
-
         // setting a winner means the battle is over
         if (defender.stats.hp() == 0) {
             arena.winner.fill(attacker.account);
@@ -188,13 +174,25 @@ module prototype::arena_pvp {
 
         if (next_round_cond) {
             arena.round = arena.round + 1;
-        };
 
-        sui::event::emit(RoundResult {
-            arena: arena.id.to_address(),
-            attacker_hp: attacker.stats.hp(),
-            defender_hp: defender.stats.hp(),
-        });
+            let (p1_hp, p1_move) = if (is_p1) {
+                (attacker.stats.hp(), _move)
+            } else {
+                (defender.stats.hp(), *defender.last_move.borrow())
+            };
+            let (p2_hp, p2_move) = if (!is_p1) {
+                (attacker.stats.hp(), _move)
+            } else {
+                (defender.stats.hp(), *defender.last_move.borrow())
+            };
+
+            arena.history.push_back(RoundResult {
+                player_one_hp: p1_hp,
+                player_two_hp: p2_hp,
+                player_one_move: p1_move,
+                player_two_move: p2_move
+            });
+        };
     }
 
     // === Internal ===
@@ -262,6 +260,7 @@ module prototype::arena_pvp {
             starting_hp: stats.hp(),
             account: ctx.sender(),
             next_attack: option::none(),
+            last_move: option::none(),
             next_round: 0,
             stats,
         };
@@ -273,7 +272,8 @@ module prototype::arena_pvp {
             player_one,
             player_two,
             round: 0,
-            winner: option::none()
+            winner: option::none(),
+            history: vector[]
         }
     }
 
