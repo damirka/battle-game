@@ -13,9 +13,7 @@ Sui = { git = "https://github.com/damirka/pokemon.git", subdir = "packages/pokem
 
 ## Want to play?
 
-Devnet is reset weekly, so the stored package id may already be irrelevant. However, if it does work, you're free to use CLI to challenge a bot or another player.
-
-Go to [CLI](./cli) for a guide.
+Package is live on testnet. Go to [CLI](./cli) for a guide.
 
 ## License
 

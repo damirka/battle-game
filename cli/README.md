@@ -23,7 +23,7 @@ node v1/pvp join <arena> # join an arena created by another player
 node v1/pvp search       # search last 10 created arenas and check if they're available
 ```
 
-*Please, note, that for usability purposes the CLI scripts are creating a temporary keystore, this is merely an easier setup practice and should not be used in production. We all want things to work out of the box but key management is not something to ignore*
+_Please, note, that for usability purposes the CLI scripts are creating a temporary keystore, this is merely an easier setup practice and should not be used in production. We all want things to work out of the box but key management is not something to ignore_
 
 ## Play with yourself
 
