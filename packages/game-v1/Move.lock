@@ -2,7 +2,7 @@
 
 [move]
 version = 0
-manifest_digest = "1F2C84C8A23542AC1F7BBC3FB77646AAD50B35CC1866568F03BB4B9AEC4020FC"
+manifest_digest = "68F0A0B2C558D7DB93D90F7B67858D19D94D69CFAC87D2AA046A5DF2EC0712D6"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 
 dependencies = [
@@ -29,3 +29,16 @@ source = { local = "../pokemon" }
 dependencies = [
   { name = "Sui" },
 ]
+
+[move.toolchain-version]
+compiler-version = "1.24.0"
+edition = "2024.beta"
+flavor = "sui"
+
+[env]
+
+[env.testnet]
+chain-id = "4c78adac"
+original-published-id = "0x5d1049d41bbf210afb80939b601f3a8ab18e1e098e90212e2a427c99fb406afb"
+latest-published-id = "0x5d1049d41bbf210afb80939b601f3a8ab18e1e098e90212e2a427c99fb406afb"
+published-version = "1"

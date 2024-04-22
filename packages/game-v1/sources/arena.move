@@ -3,17 +3,12 @@
 
 /// Arena module.
 module prototype::arena {
-    use std::vector;
-
-    use sui::tx_context::{Self, TxContext};
-    use sui::object::{Self, UID};
-    use sui::transfer;
     use sui::bcs;
 
     use pokemon::stats::{Self, Stats};
     use prototype::battle;
 
-    struct Arena has key {
+    public struct Arena has key {
         id: UID,
         seed: vector<u8>,
         round: u8,
@@ -22,18 +17,19 @@ module prototype::arena {
         is_over: bool
     }
 
-    struct ArenaCreated has copy, drop {
+    public struct ArenaCreated has copy, drop {
         arena: address,
         bot_stats: Stats,
         player_stats: Stats,
     }
 
-    struct ArenaHit has copy, drop {
+    public struct ArenaHit has copy, drop {
         arena: address,
         bot_hp: u64,
         player_hp: u64,
     }
 
+    #[allow(lint(share_owned))]
     /// Create and share a new arena.
     entry fun new(ctx: &mut TxContext) {
         transfer::share_object(new_(ctx));
@@ -60,8 +56,8 @@ module prototype::arena {
 
         arena.round = arena.round + 1;
 
-        let player_hp = stats::hp(&arena.player_stats);
-        let bot_hp = stats::hp(&arena.bot_stats);
+        let player_hp = arena.player_stats.hp();
+        let bot_hp = arena.bot_stats.hp();
 
         if (player_hp == 0 || bot_hp == 0) {
             arena.is_over = true;
@@ -79,19 +75,19 @@ module prototype::arena {
         // let level = if (level == 0) { 1 } else { level };
         let level = 10;
         stats::new(
-            10 + smooth(*vector::borrow(&seed, 0)),
-            smooth(*vector::borrow(&seed, 1)),
-            smooth(*vector::borrow(&seed, 2)),
-            smooth(*vector::borrow(&seed, 3)),
-            smooth(*vector::borrow(&seed, 4)),
-            smooth(*vector::borrow(&seed, 5)),
+            10 + smooth(seed[0]),
+            smooth(seed[1]),
+            smooth(seed[2]),
+            smooth(seed[3]),
+            smooth(seed[4]),
+            smooth(seed[5]),
             level,
-            vector[ *vector::borrow(&seed, 6) % 3 ]
+            vector[ seed[6] % 3 ]
         )
     }
 
     fun hit_rng(seed: vector<u8>, path: u8, round: u8): u8 {
-        let value = *vector::borrow(&derive(seed, path), (round as u64));
+        let value = derive(seed, path)[(round as u64)];
         ((value % (255 - 217)) + 217)
     }
 
@@ -104,16 +100,16 @@ module prototype::arena {
         }
     }
 
-    fun derive(seed: vector<u8>, path: u8): vector<u8> {
-        vector::push_back(&mut seed, path);
+    fun derive(mut seed: vector<u8>, path: u8): vector<u8> {
+        seed.push_back(path);
         sui::hash::blake2b256(&seed)
     }
 
     fun new_(ctx: &mut TxContext): Arena {
-        let addr = tx_context::fresh_object_address(ctx);
+        let addr = ctx.fresh_object_address();
         let seed = sui::hash::blake2b256(&bcs::to_bytes(&addr));
         let id = object::new(ctx);
-        let arena = object::uid_to_address(&id);
+        let arena = id.to_address();
 
         // Generate stats for player and bot.
 
@@ -135,10 +131,10 @@ module prototype::arena {
         let ctx = &mut tx_context::dummy();
 
         // skip some IDs.
-        tx_context::fresh_object_address(ctx);
-        tx_context::fresh_object_address(ctx);
+        ctx.fresh_object_address();
+        ctx.fresh_object_address();
 
-        let arena = new_(ctx);
+        let mut arena = new_(ctx);
 
         attack(&mut arena, 0, ctx);
         attack(&mut arena, 1, ctx);

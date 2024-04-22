@@ -18,10 +18,10 @@ import * as fs from "fs";
 // === Sui Devnet Environment ===
 
 const pkg =
-  "0x3b12f22fa80b399a104f590e9b3a396a7b2545aac1fa22590482b5864f26b898";
+  "0x5d1049d41bbf210afb80939b601f3a8ab18e1e098e90212e2a427c99fb406afb";
 
 /** The built-in client for the application */
-const client = new SuiClient({ url: getFullnodeUrl("devnet") });
+const client = new SuiClient({ url: getFullnodeUrl("testnet") });
 
 /** The private key for the address; only for testing purposes */
 const myKey = {
@@ -532,10 +532,12 @@ async function checkOrRequestGas() {
   console.log("Checking for gas...");
   let coins = await client.getCoins({ owner: address });
   if (coins.data.length == 0) {
-    console.log("No gas found; requesting from faucet... (wait 20s)");
+    console.log("No gas found; requesting from faucet... (wait 60s)");
     await requestFromFaucet();
     setTimeout(() => console.log("It's been 10s..."), 10000);
-    return new Promise((resolve) => setTimeout(resolve, 20000));
+    setTimeout(() => console.log("It's been 30s..."), 30000);
+    setTimeout(() => console.log("It's been 60s..."), 60000);
+    return new Promise((resolve) => setTimeout(resolve, 60000));
   }
   console.log("All good!");
 }
@@ -543,7 +545,7 @@ async function checkOrRequestGas() {
 /** Request some SUI to the main address */
 function requestFromFaucet() {
   return requestSuiFromFaucetV1({
-    host: getFaucetHost("devnet"),
+    host: getFaucetHost("testnet"),
     recipient: address,
   });
 }

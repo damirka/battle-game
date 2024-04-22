@@ -16,9 +16,8 @@
 ///
 /// What to expect? Better stats distribution of course!
 module prototype::battle {
-    use std::vector;
     use pokemon::pokemon_v1 as pokemon;
-    use pokemon::stats::{Self, Stats};
+    use pokemon::stats::Stats;
 
     /// Trying to use a non-existent Move (only use 0, 1, 2).
     const EWrongMove: u64 = 0;
@@ -58,11 +57,12 @@ module prototype::battle {
         assert!(_move < 3, EWrongMove);
 
         // Currently Capys only have 1 type. Pokemons can have up to 2 types.
-        let attacker_type = (*vector::borrow(&stats::types(attacker), 0) as u64);
-        let defender_type = (*vector::borrow(&stats::types(defender), 0) as u64);
+        let attacker_type = attacker.types()[0] as u64;
+        let defender_type = defender.types()[0] as u64;
 
-        let move_power = *vector::borrow(&MOVES_POWER, _move);
-        let raw_damage = pokemon::physical_damage(
+        let pow_table = MOVES_POWER;
+        let move_power = pow_table[_move];
+        let mut raw_damage = pokemon::physical_damage(
             attacker,
             defender,
             move_power,
@@ -71,8 +71,9 @@ module prototype::battle {
 
         // Get the effectiveness table for this specifc Move, then look up defender's
         // type in the table by index. That would be the TYPE1 modifier.
-        let move_effectiveness = *vector::borrow(&MOVES_EFFECTIVENESS, _move);
-        let effectiveness = *vector::borrow(&move_effectiveness, defender_type);
+        let eff_table = MOVES_EFFECTIVENESS;
+        let move_effectiveness = eff_table[_move];
+        let effectiveness = move_effectiveness[defender_type];
 
         // TODO: remove in the future.
         if (debug) {
@@ -100,6 +101,6 @@ module prototype::battle {
         };
 
         // Now apply the damage to the defender (can get to 0, safe operation)
-        stats::decrease_hp(defender, raw_damage);
+        defender.decrease_hp(raw_damage);
     }
 }

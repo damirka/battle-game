@@ -40,9 +40,9 @@ module pokemon::pokemon_v1 {
         assert!(move_power > 0, EIncorrectMovePower);
 
         damage(
-            (stats::level(attacker) as u64),
-            (stats::attack(attacker) as u64),
-            (stats::defense(defender) as u64),
+            (attacker.level() as u64),
+            (attacker.attack() as u64),
+            (defender.defence() as u64),
             (move_power as u64),
             (random as u64),
             stats::scaling(),
@@ -60,9 +60,9 @@ module pokemon::pokemon_v1 {
         assert!(move_power > 0, EIncorrectMovePower);
 
         damage(
-            (stats::level(attacker) as u64),
-            (stats::special_attack(attacker) as u64),
-            (stats::special_defense(defender) as u64),
+            (attacker.level() as u64),
+            (attacker.special_attack() as u64),
+            (defender.special_defence() as u64),
             (move_power as u64),
             (random as u64),
             stats::scaling(),

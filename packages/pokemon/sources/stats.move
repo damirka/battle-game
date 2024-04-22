@@ -14,17 +14,17 @@ module pokemon::stats {
 
     /// The Stats of a Pokemon (basically, a structured collection of u8 values)
     /// Can be created using the `new` function.
-    struct Stats has copy, store, drop {
+    public struct Stats has copy, store, drop {
         /// The HP stat of the Pokemon: scaled by 10^9.
         hp: u64,
         /// The attack stat of the Pokemon.
         attack: u8,
-        /// The defense stat of the Pokemon.
-        defense: u8,
+        /// The defence stat of the Pokemon.
+        defence: u8,
         /// The special attack stat of the Pokemon.
         special_attack: u8,
-        /// The special defense stat of the Pokemon.
-        special_defense: u8,
+        /// The special defence stat of the Pokemon.
+        special_defence: u8,
         /// The speed stat of the Pokemon.
         speed: u8,
         /// The level of the Pokemon (0-100)
@@ -42,9 +42,9 @@ module pokemon::stats {
     public fun new(
         hp: u8,
         attack: u8,
-        defense: u8,
+        defence: u8,
         special_attack: u8,
-        special_defense: u8,
+        special_defence: u8,
         speed: u8,
         level: u8,
         types: vector<u8>,
@@ -54,9 +54,9 @@ module pokemon::stats {
         Stats {
             hp: (hp as u64) * SCALING_FACTOR,
             attack,
-            defense,
+            defence,
             special_attack,
-            special_defense,
+            special_defence,
             speed,
             level,
             types,
@@ -74,14 +74,14 @@ module pokemon::stats {
     /// Return the attack stat of the given Pokemon.
     public fun attack(stat: &Stats): u8 { stat.attack }
 
-    /// Return the defense stat of the given Pokemon.
-    public fun defense(stat: &Stats): u8 { stat.defense }
+    /// Return the defence stat of the given Pokemon.
+    public fun defence(stat: &Stats): u8 { stat.defence }
 
     /// Return the special attack stat of the given Pokemon.
     public fun special_attack(stat: &Stats): u8 { stat.special_attack }
 
-    /// Return the special defense stat of the given Pokemon.
-    public fun special_defense(stat: &Stats): u8 { stat.special_defense }
+    /// Return the special defence stat of the given Pokemon.
+    public fun special_defence(stat: &Stats): u8 { stat.special_defence }
 
     /// Return the speed stat of the given Pokemon.
     public fun speed(stat: &Stats): u8 { stat.speed }
