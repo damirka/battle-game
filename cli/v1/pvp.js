@@ -285,7 +285,7 @@ async function fullRound(arena, p1, p2, gasObj = null) {
   let round_res = null;
   let p2Revealed = listenToArenaEvents(arena.objectId, (arena) => {
     // Next round happened -ish
-    if (arena.history.length == initialState.history.length + 1) {
+    if (arena.winner !== null || arena.history.length == initialState.history.length + 1) {
       round_res = arena.history[arena.history.length - 1];
       return arena;
     }
@@ -295,7 +295,7 @@ async function fullRound(arena, p1, p2, gasObj = null) {
   gasObj = rvlGas;
   console.log("Revealed!");
 
-  await p2Revealed;
+  let newState = await p2Revealed;
 
   console.log("Both players have revealed their moves. Results are in!");
   console.table([
@@ -311,23 +311,10 @@ async function fullRound(arena, p1, p2, gasObj = null) {
     },
   ]);
 
-  if (meP1 && round_res.playerOneHp == 0) {
-    console.log("Game over! You lost!");
-    process.exit(0);
-  }
-
-  if (meP1 && round_res.playerTwoHp == 0) {
-    console.log("Congratulations! You won!");
-    process.exit(0);
-  }
-
-  if (!meP1 && round_res.playerOneHp == 0) {
-    console.log("Congratulations! You won!");
-    process.exit(0);
-  }
-
-  if (!meP1 && round_res.playerTwoHp == 0) {
-    console.log("Game over! You lost!");
+  if (newState.winner) {
+    (newState.winner == p1)
+      ? console.log("Congratulations! You won!")
+      : console.log("Game over! You lost!");
     process.exit(0);
   }
 
