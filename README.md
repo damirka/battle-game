@@ -1,4 +1,4 @@
-# Sui Pokemon
+# Sui Battle Game
 
 This is an example implementation of the Pokemon damage formula v1 on Sui with a simple example of a game that uses it in 2 modes: single player (vs bot) and multiplayer.
 
