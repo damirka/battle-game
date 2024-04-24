@@ -4,7 +4,7 @@ This is an example implementation of the Pokemon algorithm v1 on Sui with a simp
 
 ## How to use
 
-You can either play the game on testnet by looking into [cli](./cli) folder or use the library in your own project. The algorithm is not yet published on any of the environments, so you need to include it as a dependency and either publish separately or together with your package.
+You can either play the prototype on testnet by looking into [cli](./cli) folder or use the library in your own project. The algorithm is not yet published on any of the environments, so you need to include it as a dependency and either publish separately or together with your package.
 
 ```toml
 [dependencies]
