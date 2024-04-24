@@ -8,7 +8,7 @@ You can either play the prototype on testnet by looking into [cli](./cli) folder
 
 ```toml
 [dependencies]
-Sui = { git = "https://github.com/damirka/pokemon.git", subdir = "packages/pokemon", rev = "main" }
+Sui = { git = "https://github.com/damirka/pokemon-formula.git", subdir = "packages/pokemon", rev = "main" }
 ```
 
 ## Want to play?
