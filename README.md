@@ -1,6 +1,6 @@
 # Sui Pokemon
 
-This is an example implementation of the Pokemon algorithm v1 on Sui with a simple example of a game that uses it in 2 modes: single player (vs bot) and multiplayer.
+This is an example implementation of the Pokemon damage formula v1 on Sui with a simple example of a game that uses it in 2 modes: single player (vs bot) and multiplayer.
 
 ## How to use
 
